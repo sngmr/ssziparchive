@@ -304,11 +304,15 @@
 #pragma mark - Zipping
 
 + (BOOL)createZipFileAtPath:(NSString *)path withFilesAtPaths:(NSArray *)paths {
+    return [self createZipFileAtPath:path withFilesAtPaths:paths level:Z_DEFAULT_COMPRESSION];
+}
+
++ (BOOL)createZipFileAtPath:(NSString *)path withFilesAtPaths:(NSArray *)paths level:(int)level {
 	BOOL success = NO;
 	SSZipArchive *zipArchive = [[SSZipArchive alloc] initWithPath:path];
 	if ([zipArchive open]) {
 		for (NSString *path in paths) {
-			[zipArchive writeFile:path];
+			[zipArchive writeFileAtPath:path withFileName:nil compressionLevel:level];
 		}
 		success = [zipArchive close];
 	}
@@ -320,8 +324,11 @@
 	return success;
 }
 
-
 + (BOOL)createZipFileAtPath:(NSString *)path withContentsOfDirectory:(NSString *)directoryPath {
+    return [self createZipFileAtPath:path withContentsOfDirectory:directoryPath level:Z_DEFAULT_COMPRESSION];
+}
+
++ (BOOL)createZipFileAtPath:(NSString *)path withContentsOfDirectory:(NSString *)directoryPath level:(int)level {
     BOOL success = NO;
 
     NSFileManager *fileManager = nil;
@@ -338,7 +345,7 @@
             NSString *fullFilePath = [directoryPath stringByAppendingPathComponent:fileName];
             [fileManager fileExistsAtPath:fullFilePath isDirectory:&isDir];
             if (!isDir) {
-                [zipArchive writeFileAtPath:fullFilePath withFileName:fileName];
+                [zipArchive writeFileAtPath:fullFilePath withFileName:fileName compressionLevel:level];
             }
         }
         success = [zipArchive close];
@@ -394,10 +401,14 @@
     return [self writeFileAtPath:path withFileName:nil];
 }
 
+- (BOOL)writeFileAtPath:(NSString *)path withFileName:(NSString *)fileName {
+    return [self writeFileAtPath:path withFileName:fileName compressionLevel:Z_DEFAULT_COMPRESSION];
+}
+
 // supports writing files with logical folder/directory structure
 // *path* is the absolute path of the file that will be compressed
 // *fileName* is the relative name of the file how it is stored within the zip e.g. /folder/subfolder/text1.txt
-- (BOOL)writeFileAtPath:(NSString *)path withFileName:(NSString *)fileName {
+- (BOOL)writeFileAtPath:(NSString *)path withFileName:(NSString *)fileName compressionLevel:(int)compressionLevel {
     NSAssert((_zip != NULL), @"Attempting to write to an archive which was never opened");
 
 	FILE *input = fopen([path UTF8String], "r");
@@ -442,7 +453,7 @@
         }
     }
 
-    zipOpenNewFileInZip(_zip, afileName, &zipInfo, NULL, 0, NULL, 0, NULL, Z_DEFLATED, Z_DEFAULT_COMPRESSION);
+    zipOpenNewFileInZip(_zip, afileName, &zipInfo, NULL, 0, NULL, 0, NULL, Z_DEFLATED, compressionLevel);
 
 	void *buffer = malloc(CHUNK);
 	unsigned int len = 0;
@@ -459,8 +470,11 @@
 	return YES;
 }
 
-
 - (BOOL)writeData:(NSData *)data filename:(NSString *)filename {
+    return [self writeData:data filename:filename compressionLevel:Z_DEFAULT_COMPRESSION];
+}
+
+- (BOOL)writeData:(NSData *)data filename:(NSString *)filename compressionLevel:(int)compressionLevel {
     if (!_zip) {
 		return NO;
     }
@@ -470,7 +484,7 @@
     zip_fileinfo zipInfo = {{0,0,0,0,0,0},0,0,0};
     [self zipInfo:&zipInfo setDate:[NSDate date]];
 
-	zipOpenNewFileInZip(_zip, [filename UTF8String], &zipInfo, NULL, 0, NULL, 0, NULL, Z_DEFLATED, Z_DEFAULT_COMPRESSION);
+	zipOpenNewFileInZip(_zip, [filename UTF8String], &zipInfo, NULL, 0, NULL, 0, NULL, Z_DEFLATED, compressionLevel);
 
     zipWriteInFileInZip(_zip, data.bytes, (unsigned int)data.length);
 
